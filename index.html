@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unicorn Quest: The Enchanted Kingdom</title>
+<style>
+:root {
+  --ink: #44345f;
+  --purple: #a78bfa;
+  --glass: #ffffffdf;
+}
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Trebuchet MS, Arial, sans-serif;
+  color: var(--ink);
+  background: linear-gradient(135deg,#d9f7ff,#f9e2ff 48%,#fff0ce);
+  min-height: 100vh;
+}
+
+header { padding: 16px 20px; text-align: center; }
+h1 { margin: 0; font-size: clamp(1.6rem,4vw,2.5rem); }
+.subtitle { margin: 5px 0 0; }
+
+.app { max-width: 1100px; margin: auto; padding: 0 14px 24px; }
+
+.topbar,.panel {
+  background: var(--glass);
+  border: 2px solid #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px #6c4a9820;
+}
+
+.topbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.stats { display: flex; gap: 12px; flex-wrap: wrap; font-weight: bold; }
+
+button,select {
+  font: inherit;
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 13px;
+  background: #8d70d9;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #f3eaff;
+  color: #59427e;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 265px;
+  gap: 12px;
+}
+
+.gamebox {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 4px solid white;
+  background: #b8e8a7;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16/10;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #44345f88;
+  padding: 20px;
+}
+
+.dialog {
+  max-width: 440px;
+  width: 100%;
+  background: #fffafc;
+  border: 3px solid white;
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+}
+
+.dialog h2 { margin: 0 0 8px; }
+.dialog p { line-height: 1.5; }
+
+.sidebar { display: flex; flex-direction: column; gap: 12px; }
+.panel { padding: 14px; }
+.panel h3 { margin: 0 0 9px; }
+.panel p { margin: 7px 0; line-height: 1.4; }
+.mission { background: #f7efff; border-radius: 12px; padding: 10px; }
+.small { font-size: .88rem; }
+#message { min-height: 40px; font-weight: bold; color: #654a9b; }
+.key { background: #f0e8ff; border-radius: 6px; padding: 2px 6px; }
+
+footer { text-align: center; padding: 14px; font-size: .85rem; }
+
+@media(max-width:760px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>🦄 Unicorn Quest: The Enchanted Kingdom</h1>
+  <p class="subtitle">Explore magical lands, collect treasures, and restore the kingdom!</p>
+</header>
+
+<main class="app">
+  <div class="topbar">
+    <div class="stats">
+      <span>⭐ Points: <b id="score">0</b></span>
+      <span>🌸 Flowers: <b id="flowers">0</b></span>
+      <span>💎 Crystals: <b id="crystals">0</b></span>
+      <span>🪙 Coins: <b id="coins">0</b></span>
+    </div>
+    <div>
+      <button class="secondary" id="saveBtn">Save</button>
+      <button class="secondary" id="pauseBtn">Pause</button>
+      <button class="secondary" id="resetBtn">New Adventure</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="gamebox">
+      <canvas id="game" width="800" height="500"></canvas>
+
+      <div class="overlay" id="startOverlay">
+        <div class="dialog">
+          <h2>✨ Welcome, Unicorn Adventurer!</h2>
+          <p>Explore the Enchanted Forest, collect magical objects, and find the treasure chest.</p>
+          <p>Move with <span class="key">W A S D</span> or arrow keys.</p>
+          <button id="startBtn">Start Adventure</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <h3>🗺️ Your Adventure</h3>
+        <p><b id="biomeName">Enchanted Forest</b></p>
+        <div class="mission">
+          <b>Main mission</b>
+          <p id="missionText">Find the magical objects and discover the hidden treasure chest.</p>
+        </div>
+        <p id="progressText" class="small">Forest treasure: not yet found</p>
+      </div>
+
+      <div class="panel">
+        <h3>🦄 Unicorn</h3>
+        <p>Choose a body color:</p>
+        <select id="unicornColor">
+          <option value="#fff7ff">Pearl white</option>
+          <option value="#ffb7d5">Cotton-candy pink</option>
+          <option value="#b7a1ff">Lavender</option>
+          <option value="#8ee5dc">Mint</option>
+          <option value="#ffe08b">Golden</option>
+        </select>
+      </div>
+
+      <div class="panel">
+        <h3>🎮 Controls</h3>
+        <p>WASD / Arrow keys: Move</p>
+        <p>E: Open nearby treasure chest</p>
+        <p>Esc: Pause / resume</p>
+        <p id="message" role="status">Find the sparkling objects!</p>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer>
+  Made with HTML, CSS, and JavaScript • Progress saves in this browser.
+</footer>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+
+  const biomes = [
+    {
+      name: 'Enchanted Forest',
+      bg: '#a9dfa0',
+      mission: 'Find the magical objects and discover the hidden treasure chest.',
+      treasure: 'Magical Emerald'
+    },
+    {
+      name: 'Fairy Kingdom',
+      bg: '#f4c9e6',
+      mission: 'Explore the kingdom and discover its royal treasure.',
+      treasure: 'Royal Magic Crown'
+    },
+    {
+      name: 'Crystal Caves',
+      bg: '#a9c9ee',
+      mission: 'Explore the caves and discover the ancient treasure.',
+      treasure: 'Ancient Crystal Heart'
+    },
+    {
+      name: 'Snowy Mountains',
+      bg: '#d9efff',
+      mission: 'Explore the mountains and discover the final treasure.',
+      treasure: 'Frozen Magic Star'
+    }
+  ];
+
+  let state = {
+    x: 90, y: 250,
+    score: 0,
+    flowers: 0,
+    crystals: 0,
+    coins: 0,
+    biome: 0,
+    found: false,
+    opened: false,
+    paused: false,
+    started: false,
+    color: '#fff7ff',
+    items: [],
+    unlocked: 0
+  };
+
+  const keys = {};
+
+  function makeItems() {
+    const positions = [
+      [210,100,'flower'],
+      [330,350,'crystal'],
+      [480,145,'flower'],
+      [600,370,'coin'],
+      [690,100,'star'],
+      [130,410,'star']
+    ];
+
+    state.items = positions.map((p,i) => ({
+      x:p[0], y:p[1], type:p[2], taken:false, id:i
+    }));
+  }
+
+  function save() {
+    localStorage.setItem('unicornQuestSave', JSON.stringify(state));
+    $('message').textContent = 'Progress saved in this browser! ✨';
+  }
+
+  function load() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('unicornQuestSave'));
+      if (saved) {
+        state = {...state,...saved};
+        if (!Array.isArray(state.items)) makeItems();
+      }
+    } catch(e) {
+      makeItems();
+    }
+    $('unicornColor').value = state.color;
+  }
+
+  function updateUI() {
+    $('score').textContent = state.score;
+    $('flowers').textContent = state.flowers;
+    $('crystals').textContent = state.crystals;
+    $('coins').textContent = state.coins;
+    $('biomeName').textContent = biomes[state.biome].name;
+    $('missionText').textContent = biomes[state.biome].mission;
+
+    $('progressText').textContent = state.opened
+      ? 'Treasure found: ' + biomes[state.biome].treasure
+      : state.found
+      ? 'Key discovered! Press E near the chest.'
+      : 'Treasure: not yet found';
+  }
+
+  function roundedRect(x,y,w,h,r,color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x,y,w,h,r);
+    ctx.fill();
+  }
+
+  function draw() {
+    const b = biomes[state.biome];
+    ctx.fillStyle = b.bg;
+    ctx.fillRect(0,0,800,500);
+
+    ctx.strokeStyle = '#ffffff55';
+    ctx.lineWidth = 42;
+    ctx.beginPath();
+    ctx.moveTo(0,250);
+    ctx.bezierCurveTo(240,180,430,330,800,230);
+    ctx.stroke();
+
+    for(let i=0;i<18;i++) {
+      let x=(i*137+35)%780+10;
+      let y=(i*83+35)%470+15;
+      ctx.fillStyle=state.biome===3?'#ffffffaa':'#438d5b55';
+      ctx.beginPath();
+      ctx.arc(x,y,10+(i%3)*3,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    for(const item of state.items) {
+      if(item.taken) continue;
+      ctx.font='27px Arial';
+      ctx.textAlign='center';
+      ctx.fillText({
+        flower:'🌸',
+        crystal:'💎',
+        coin:'🪙',
+        star:'⭐'
+      }[item.type],item.x,item.y);
+    }
+
+    roundedRect(665,210,65,52,10,'#98603d');
+    roundedRect(665,204,65,18,8,'#e5b84f');
+    ctx.fillStyle='#fff3a5';
+    ctx.fillRect(693,218,9,14);
+
+    if(state.opened) {
+      ctx.font='25px Arial';
+      ctx.fillText('✨',697,190);
+    }
+
+    roundedRect(755,185,28,130,12,'#8a63d2');
+    ctx.fillStyle='#e9d8ff';
+    ctx.fillRect(763,198,12,104);
+
+    ctx.save();
+    ctx.translate(state.x,state.y);
+    ctx.font='34px Arial';
+    ctx.textAlign='center';
+    ctx.fillText('🦄',0,10);
+    ctx.restore();
+
+    ctx.fillStyle='#44345f';
+    ctx.font='14px Trebuchet MS';
+    ctx.textAlign='left';
+    ctx.fillText('Find the chest near the right side!',14,24);
+  }
+
+  function near(x,y,dist=48) {
+    return Math.hypot(state.x-x,state.y-y)<dist;
+  }
+
+  function move() {
+    if(!state.started || state.paused) return;
+
+    let dx=0,dy=0;
+
+    if(keys.ArrowLeft||keys.a) dx--;
+    if(keys.ArrowRight||keys.d) dx++;
+    if(keys.ArrowUp||keys.w) dy--;
+    if(keys.ArrowDown||keys.s) dy++;
+
+    if(dx||dy) {
+      const n=Math.hypot(dx,dy);
+      state.x=Math.max(25,Math.min(775,state.x+dx/n*3));
+      state.y=Math.max(35,Math.min(465,state.y+dy/n*3));
+    }
+
+    for(const item of state.items) {
+      if(!item.taken && near(item.x,item.y,27)) {
+        item.taken=true;
+
+        if(item.type==='flower') {
+          state.flowers++;
+          state.score+=50;
+        }
+        if(item.type==='crystal') {
+          state.crystals++;
+          state.score+=25;
+        }
+        if(item.type==='coin') {
+          state.coins++;
+          state.score+=10;
+        }
+        if(item.type==='star') state.score+=100;
+
+        $('message').textContent='Collected '+item.type+'!';
+        save();
+        updateUI();
+      }
+    }
+
+    if(!state.found && state.items.filter(i=>i.taken).length>=3) {
+      state.found=true;
+      $('message').textContent='You discovered the hidden forest key! Find the chest and press E.';
+      updateUI();
+    }
+
+    if(state.opened && state.x>744 && state.biome<3) {
+      state.biome++;
+      state.x=70;
+      state.y=250;
+      state.found=false;
+      state.opened=false;
+      makeItems();
+      $('message').textContent='Welcome to the '+biomes[state.biome].name+'!';
+      save();
+      updateUI();
+    }
+  }
+
+  function interact() {
+    if(near(697,230,75)) {
+      if(!state.found) {
+        $('message').textContent='Keep exploring to discover the hidden key.';
+        return;
+      }
+
+      if(!state.opened) {
+        state.opened=true;
+        $('message').textContent='You opened the chest and found the '+biomes[state.biome].treasure+'!';
+
+        if(state.biome<3) {
+          state.unlocked=Math.max(state.unlocked,state.biome+1);
+        } else {
+          $('message').textContent='You restored the kingdom’s magic! You are a Royal Guardian! 👑';
+        }
+
+        save();
+        updateUI();
+      } else {
+        $('message').textContent='The treasure chest is already open!';
+      }
+    } else {
+      $('message').textContent='Move closer to the treasure chest to interact.';
+    }
+  }
+
+  function togglePause() {
+    if(!state.started) return;
+    state.paused=!state.paused;
+    $('message').textContent=state.paused
+      ? 'Game paused. Press Esc or Pause to continue.'
+      : 'Adventure resumed!';
+  }
+
+  document.addEventListener('keydown',e=>{
+    const k=e.key.length===1?e.key.toLowerCase():e.key;
+    keys[k]=true;
+
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+
+    if(k==='e') interact();
+    if(e.key==='Escape') togglePause();
+  });
+
+  document.addEventListener('keyup',e=>{
+    const k=e.key.length===1?e.key.toLowerCase():e.key;
+    keys[k]=false;
+  });
+
+  $('startBtn').onclick=()=>{
+    state.started=true;
+    $('startOverlay').style.display='none';
+  };
+
+  $('pauseBtn').onclick=togglePause;
+  $('saveBtn').onclick=save;
+
+  $('resetBtn').onclick=()=>{
+    if(confirm('Start a completely new adventure? Your current saved adventure will be replaced.')) {
+      localStorage.removeItem('unicornQuestSave');
+
+      state={
+        x:90,y:250,score:0,flowers:0,crystals:0,coins:0,
+        biome:0,found:false,opened:false,paused:false,
+        started:true,color:$('unicornColor').value,
+        items:[],unlocked:0
+      };
+
+      makeItems();
+      $('startOverlay').style.display='none';
+      $('message').textContent='A new adventure begins!';
+      updateUI();
+      save();
+    }
+  };
+
+  $('unicornColor').onchange=e=>{
+    state.color=e.target.value;
+    save();
+  };
+
+  load();
+  if(!state.items.length) makeItems();
+  updateUI();
+
+  function loop() {
+    move();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+})();
+</script>
+</body>
+</html>
